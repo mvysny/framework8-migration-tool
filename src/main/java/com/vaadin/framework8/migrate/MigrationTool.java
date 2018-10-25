@@ -8,68 +8,32 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
 
 /**
  * @author mavi
  */
 public class MigrationTool {
-    private HashSet<String> serverV7Classes;
-    private Set<String> sharedV7Classes;
-    private Set<String> serverV7UIClasses;
-    private Set<String> clientV7Classes;
+    private final VaadinClassList classList;
     private Map<String, String> specialRenames;
     private final String vaadin8Version;
     private final File projectRoot;
     private final Charset charset;
 
-    public MigrationTool(String vaadin8Version, File projectRoot, Charset charset) {
+    public MigrationTool(String vaadin8Version, File projectRoot, Charset charset) throws IOException {
         this.vaadin8Version = Objects.requireNonNull(vaadin8Version);
         this.projectRoot = Objects.requireNonNull(projectRoot);
         this.charset = Objects.requireNonNull(charset);
+        classList = VaadinClassList.getForVaadin(vaadin8Version);
     }
 
     public void migrate() throws Exception {
         String version = vaadin8Version;
-        System.out.println("Scanning for compatibility classes for " + version
-                + " version...");
-        String compatServerFilename = VadinJarFinder
-                .get("vaadin-compatibility-server", version);
-        String compatSharedFilename = VadinJarFinder
-                .get("vaadin-compatibility-shared", version);
-        String compatClientFilename = VadinJarFinder
-                .get("vaadin-compatibility-client", version);
-
-        serverV7Classes = new HashSet<>();
-        sharedV7Classes = new HashSet<>();
-        clientV7Classes = new HashSet<>();
-
-        findV7Classes(compatServerFilename, serverV7Classes);
-        findV7Classes(compatSharedFilename, sharedV7Classes);
-        findV7Classes(compatClientFilename, clientV7Classes);
-
-        // This is used in interface and will break more than it fixes
-        clientV7Classes.remove("com.vaadin.v7.client.ComponentConnector");
-
-        serverV7UIClasses = serverV7Classes.stream().filter(
-                cls -> cls.matches("^com\\.vaadin\\.v7\\.ui\\.[^\\.]*$"))
-                .collect(Collectors.toSet());
-
-        System.out.println("Found " + serverV7Classes.size() + "+"
-                + sharedV7Classes.size() + " classes, including "
-                + serverV7UIClasses.size() + " UI classes");
 
         specialRenames = new HashMap<>();
         specialRenames.put("com.vaadin.data.fieldgroup.PropertyId",
@@ -84,23 +48,6 @@ public class MigrationTool {
         System.out.println("Scanned " + javaCount.get() + " Java files");
         System.out.println("Scanned " + htmlCount.get() + " HTML files");
         System.out.println("Migration complete");
-    }
-
-    private static void findV7Classes(String jarFilename, Set<String> target)
-            throws ZipException, IOException {
-        File serverFile = new File(jarFilename);
-        try (ZipFile jar = new ZipFile(serverFile)) {
-            Enumeration<? extends ZipEntry> entries = jar.entries();
-            while (entries.hasMoreElements()) {
-                ZipEntry entry = entries.nextElement();
-                if (entry.isDirectory()) {
-                    continue;
-                }
-
-                getVaadin7Class(entry).ifPresent(target::add);
-            }
-        }
-
     }
 
     private void migrateFiles(File directory, AtomicInteger javaCount,
@@ -128,18 +75,6 @@ public class MigrationTool {
         return f.getName().endsWith(".html");
     }
 
-    private static Optional<String> getVaadin7Class(ZipEntry entry) {
-        String name = entry.getName();
-        if (name.startsWith("com/vaadin/v7") && name.endsWith(".class")) {
-            name = name.replace('/', '.');
-            name = name.replace('$', '.');
-            name = name.replace(".class", "");
-            return Optional.of(name);
-        }
-
-        return Optional.empty();
-    }
-
     private void migrateJava(File f) throws IOException {
         String javaFile = IOUtils.toString(f.toURI(), charset);
         String migratedFile = modifyJava(javaFile);
@@ -158,10 +93,7 @@ public class MigrationTool {
     }
 
     private String modifyJava(String javaFile) {
-        for (String v7Class : Stream
-                .concat(Stream.concat(serverV7Classes.stream(),
-                        sharedV7Classes.stream()), clientV7Classes.stream())
-                .collect(Collectors.toList())) {
+        for (String v7Class : classList.getAllClasses()) {
 
             String comvaadinClass = v7Class.replace("com.vaadin.v7.",
                     "com.vaadin.");
@@ -198,7 +130,7 @@ public class MigrationTool {
     }
 
     private String modifyDeclarative(String htmlFile, String version) {
-        for (String v7Class : serverV7UIClasses) {
+        for (String v7Class : classList.serverV7UIClasses) {
             String simpleClassName = v7Class
                     .substring(v7Class.lastIndexOf('.') + 1);
             String tagName = classNameToElementName(simpleClassName);

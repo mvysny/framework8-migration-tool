@@ -6,6 +6,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -99,5 +100,24 @@ public class VaadinClassList {
         }
 
         return Optional.empty();
+    }
+
+    /**
+     * Returns all classes matching given star import. For example, fetching 'com.vaadin.v7.ui.*' will return
+     * 'com.vaadin.v7.ui.UI' but not 'com.vaadin.v7.ui.renderers.ImageRenderer`.
+     * @param starImport the star import, must start with 'com.vaadin.v7.' and end with '*'
+     * @return a set of matching class names, not null, may be empty.
+     */
+    public Set<String> getClassesMatchingStarImport(String starImport) {
+        if (!starImport.startsWith("com.vaadin.v7.")) {
+            throw new IllegalArgumentException("Parameter starImport: invalid value " + starImport + ": must start with com.vaadin.v7.");
+        }
+        if (!starImport.endsWith(".*")) {
+            throw new IllegalArgumentException("Parameter starImport: invalid value " + starImport + ": must end with .*");
+        }
+        final Pattern pattern = Pattern.compile(starImport.replace(".", "\\.").replace("*", "[^\\.]+"));
+        return getAllClasses().stream()
+                .filter(it -> pattern.matcher(it).matches())
+                .collect(Collectors.toSet());
     }
 }

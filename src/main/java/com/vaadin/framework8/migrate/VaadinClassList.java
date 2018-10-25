@@ -123,4 +123,8 @@ public class VaadinClassList {
                 .filter(it -> pattern.matcher(it).matches())
                 .collect(Collectors.toSet());
     }
+
+    public static String getSimpleName(String fullClassName) {
+        return fullClassName.substring(fullClassName.lastIndexOf('.') + 1);
+    }
 }

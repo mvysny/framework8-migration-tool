@@ -102,7 +102,24 @@ public class MigrationToolTest {
      * @throws Exception
      */
     @Test
-    public void testStarImportsAreMigrated() throws Exception {
+    public void testStarImportsAreReplacedSimple() throws Exception {
+        project.withJavaFile("MyLabel.java", "package com.vaadin.random.files;\n" +
+                "import com.vaadin.ui.*;\n" +
+                "public class MyLabel extends Label {}\n", Charsets.UTF_8);
+        project.migrate();
+        final TestJavaFile myLabel = project.getJavaFile("MyLabel.java");
+        myLabel.assertModified();
+        myLabel.assertContents("package com.vaadin.random.files;\n" +
+                "import com.vaadin.v7.ui.Label;\n" +
+                "public class MyLabel extends Label {}\n");
+    }
+
+    /**
+     * https://github.com/vaadin/framework8-migration-tool/issues/40
+     * @throws Exception
+     */
+    @Test
+    public void testStarImportsAreReplaced() throws Exception {
         project.withJavaFile("MyLabel.java", "package com.vaadin.random.files;\n" +
                 "import com.vaadin.ui.*;\n" +
                 "import com.vaadin.data.*;\n" +
@@ -111,18 +128,15 @@ public class MigrationToolTest {
                 "import com.vaadin.data.util.converter.*;\n" +
                 "import com.vaadin.data.util.filter.*;\n" +
                 "import com.vaadin.data.util.sqlcontainer.*;\n" +
-                "public class MyLabel extends Label {}\n", Charsets.UTF_8);
+                "public class MySlider extends Slider { private Field field; private EmailValidator emailValidator; }\n", Charsets.UTF_8);
         project.migrate();
         final TestJavaFile myLabel = project.getJavaFile("MyLabel.java");
         myLabel.assertModified();
         myLabel.assertContents("package com.vaadin.random.files;\n" +
-                "import com.vaadin.v7.ui.*;\n" +
-                "import com.vaadin.v7.data.*;\n" +
-                "import com.vaadin.v7.data.validator.*;\n" +
-                "import com.vaadin.v7.data.util.*;\n" +
-                "import com.vaadin.v7.data.util.converter.*;\n" +
-                "import com.vaadin.v7.data.util.filter.*;\n" +
-                "import com.vaadin.v7.data.util.sqlcontainer.*;\n" +
-                "public class MyLabel extends Label {}\n");
+                "import com.vaadin.v7.ui.Slider;\n" +
+                "import com.vaadin.v7.ui.Field;\n" +
+                "import com.vaadin.v7.data.Validator;\n" +
+                "import com.vaadin.v7.data.validator.EmailValidator;\n" +
+                "public class MySlider extends Slider { private Field field; private EmailValidator emailValidator; }\n");
     }
 }

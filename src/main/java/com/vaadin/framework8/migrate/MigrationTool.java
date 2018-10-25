@@ -74,7 +74,7 @@ public class MigrationTool {
 
     private void migrateJava(File f) throws IOException {
         String javaFile = IOUtils.toString(f.toURI(), charset);
-        String migratedFile = modifyJava(javaFile);
+        String migratedFile = modifyJava(new JavaFile(javaFile)).getContents();
         if (!javaFile.equals(migratedFile)) {
             FileUtils.write(f, migratedFile, charset);
         }
@@ -89,47 +89,38 @@ public class MigrationTool {
         }
     }
 
-    private String modifyJava(String javaFile) {
+    private JavaFile modifyJava(JavaFile javaFile) {
+
+        // pre-process: expand star imports
+        for (String vaadinStarImport : javaFile.getVaadinStarImports()) {
+            final String v7StarImport = vaadinStarImport.replace("com.vaadin.",
+                    "com.vaadin.v7.");
+            for (String matchingClass : classList.getClassesMatchingStarImport(v7StarImport)){
+                if (javaFile.getContents().contains(VaadinClassList.getSimpleName(matchingClass))) {
+                    javaFile.addImportAbove(vaadinStarImport, matchingClass);
+                }
+            }
+            javaFile.removeImport(vaadinStarImport);
+        }
+
+        // replace imports and everything else inside of the file with com.vaadin.v7. counterpart.
         for (String v7Class : classList.getAllClasses()) {
 
             String comvaadinClass = v7Class.replace("com.vaadin.v7.",
                     "com.vaadin.");
-            javaFile = performReplacement(javaFile, comvaadinClass, v7Class);
+            javaFile.performReplacement(comvaadinClass, v7Class);
         }
 
         for (Map.Entry<String, String> rename : specialRenames.entrySet()) {
-            javaFile = performReplacement(javaFile, rename.getKey(),
-                    rename.getValue());
+            javaFile.performReplacement(rename.getKey(), rename.getValue());
         }
 
-        javaFile = javaFile.replace("import com.vaadin.ui.*;", "import com.vaadin.v7.ui.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.*;", "import com.vaadin.v7.data.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.util.*;", "import com.vaadin.v7.data.util.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.validator.*;", "import com.vaadin.v7.data.validator.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.util.converter.*;", "import com.vaadin.v7.data.util.converter.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.util.filter.*;", "import com.vaadin.v7.data.util.filter.*;");
-        javaFile = javaFile.replace("import com.vaadin.data.util.sqlcontainer.*;", "import com.vaadin.v7.data.util.sqlcontainer.*;");
-
-        return javaFile;
-    }
-
-    private static String performReplacement(String javaFile,
-                                             String comvaadinClass, String v7Class) {
-        javaFile = javaFile.replace("import " + comvaadinClass + ";",
-                "import " + v7Class + ";");
-        javaFile = javaFile.replace("extends " + comvaadinClass + " ",
-                "extends " + v7Class + " ");
-        javaFile = javaFile.replace("implements " + comvaadinClass + " ",
-                "implements " + v7Class + " ");
-        javaFile = javaFile.replace("throws " + comvaadinClass + " ",
-                "throws " + v7Class + " ");
         return javaFile;
     }
 
     private String modifyDeclarative(String htmlFile, String version) {
         for (String v7Class : classList.serverV7UIClasses) {
-            String simpleClassName = v7Class
-                    .substring(v7Class.lastIndexOf('.') + 1);
+            String simpleClassName = VaadinClassList.getSimpleName(v7Class);
             String tagName = classNameToElementName(simpleClassName);
 
             String legacyStartTag = "<v-" + tagName + ">";

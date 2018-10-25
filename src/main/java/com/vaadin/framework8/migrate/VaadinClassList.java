@@ -14,6 +14,9 @@ import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 /**
+ * Scans Vaadin {@code vaadin-server.jar}, {@code vaadin-shared.jar} and {@code vaadin-client.jar} for Vaadin classes and builds
+ * a list of v7 compat class names. See {@link #serverV7Classes}, {@link #sharedV7Classes}, {@link #serverV7UIClasses}
+ * and {@link #clientV7Classes} for more details.
  * @author mavi
  */
 public class VaadinClassList {

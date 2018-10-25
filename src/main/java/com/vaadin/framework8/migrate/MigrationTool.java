@@ -12,15 +12,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author mavi
  */
 public class MigrationTool {
     private final VaadinClassList classList;
-    private Map<String, String> specialRenames;
+    private final Map<String, String> specialRenames = new HashMap<>();
     private final String vaadin8Version;
     private final File projectRoot;
     private final Charset charset;
@@ -30,16 +28,15 @@ public class MigrationTool {
         this.projectRoot = Objects.requireNonNull(projectRoot);
         this.charset = Objects.requireNonNull(charset);
         classList = VaadinClassList.getForVaadin(vaadin8Version);
-    }
 
-    public void migrate() throws Exception {
-        String version = vaadin8Version;
-
-        specialRenames = new HashMap<>();
         specialRenames.put("com.vaadin.data.fieldgroup.PropertyId",
                 "com.vaadin.annotations.PropertyId");
         specialRenames.put("com.vaadin.shared.ui.grid.Range",
                 "com.vaadin.shared.Range");
+    }
+
+    public void migrate() throws Exception {
+        String version = vaadin8Version;
 
         AtomicInteger javaCount = new AtomicInteger(0);
         AtomicInteger htmlCount = new AtomicInteger(0);
